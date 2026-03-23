@@ -226,12 +226,18 @@ fn format_route_response(response: &RouteResponse) -> String {
 
         let summary = &item.summary.move_info;
         if let Some(time) = summary.time {
-            output.push_str(&format!("Total time: {} min\n", time / 60));
+            output.push_str(&format!("Total time: {} min\n", time));
         }
         if let Some(ref fare) = summary.fare {
             if let Some(yen) = fare.unit_0 {
                 output.push_str(&format!("Fare: {} yen\n", yen));
             }
+            if let Some(ic) = fare.unit_48 {
+                output.push_str(&format!("IC Fare: {} yen\n", ic));
+            }
+        }
+        if let Some(distance) = summary.distance {
+            output.push_str(&format!("Distance: {} m\n", distance));
         }
         if let Some(walk) = summary.walk_distance {
             output.push_str(&format!("Walk distance: {} m\n", walk));
@@ -239,29 +245,44 @@ fn format_route_response(response: &RouteResponse) -> String {
         if let Some(transits) = summary.transit_count {
             output.push_str(&format!("Transfers: {}\n", transits));
         }
+        if let Some(ref from_time) = summary.from_time {
+            output.push_str(&format!("Departure: {}\n", from_time));
+        }
+        if let Some(ref to_time) = summary.to_time {
+            output.push_str(&format!("Arrival: {}\n", to_time));
+        }
 
         output.push_str("\nSections:\n");
         for section in &item.sections {
             match section {
                 Section::Point(p) => {
-                    if let Some(ref name) = p.name {
-                        output.push_str(&format!("  [Point] {}\n", name));
-                    }
+                    let name = p.name.as_deref().unwrap_or("?");
+                    output.push_str(&format!("  [Point] {}\n", name));
                 }
                 Section::Move(m) => {
-                    let transport = m.transport.as_deref().unwrap_or("unknown");
+                    let move_type = m.move_type.as_deref().unwrap_or("unknown");
                     let line = m.line_name.as_deref().unwrap_or("");
-                    output.push_str(&format!("  [{}] {}\n", transport, line));
+                    output.push_str(&format!("  [{}] {}\n", move_type, line));
 
-                    if let Some(ref from) = m.from {
-                        let name = from.name.as_deref().unwrap_or("?");
-                        let time = from.time.as_deref().unwrap_or("?");
-                        output.push_str(&format!("    From: {} at {}\n", name, time));
+                    if let Some(ref t) = m.transport {
+                        if let Some(ref name) = t.name {
+                            output.push_str(&format!("    Line: {}\n", name));
+                        }
+                        if let Some(ref company) = t.company {
+                            if let Some(ref cn) = company.name {
+                                output.push_str(&format!("    Company: {}\n", cn));
+                            }
+                        }
                     }
-                    if let Some(ref to) = m.to {
-                        let name = to.name.as_deref().unwrap_or("?");
-                        let time = to.time.as_deref().unwrap_or("?");
-                        output.push_str(&format!("    To:   {} at {}\n", name, time));
+
+                    if let Some(ref ft) = m.from_time {
+                        output.push_str(&format!("    Depart: {}\n", ft));
+                    }
+                    if let Some(ref tt) = m.to_time {
+                        output.push_str(&format!("    Arrive: {}\n", tt));
+                    }
+                    if let Some(t) = m.time {
+                        output.push_str(&format!("    Time: {} min\n", t));
                     }
                 }
             }
